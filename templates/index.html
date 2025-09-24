@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Chatbot</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            opacity: 0.8;
+        }
+        
+        .main-content {
+            display: flex;
+            min-height: 600px;
+        }
+        
+        .sidebar {
+            width: 300px;
+            background: #f8f9fa;
+            padding: 20px;
+            border-right: 1px solid #e9ecef;
+        }
+        
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: #fff;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            padding: 12px;
+            border-radius: 8px;
+            max-width: 80%;
+        }
+        
+        .user-message {
+            background: #e3f2fd;
+            margin-left: auto;
+            border: 1px solid #bbdefb;
+        }
+        
+        .assistant-message {
+            background: #f1f8e9;
+            margin-right: auto;
+            border: 1px solid #dcedc8;
+        }
+        
+        .input-area {
+            padding: 20px;
+            border-top: 1px solid #e9ecef;
+            background: #f8f9fa;
+        }
+        
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+        
+        input, textarea, button {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        textarea {
+            flex: 1;
+            resize: vertical;
+            min-height: 60px;
+            font-family: inherit;
+        }
+        
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #5a67d8;
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .session-list {
+            list-style: none;
+        }
+        
+        .session-item {
+            padding: 10px;
+            margin-bottom: 5px;
+            background: white;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .session-item:hover {
+            background: #e9ecef;
+        }
+        
+        .session-item.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        
+        .error {
+            color: #e74c3c;
+            padding: 10px;
+            background: #fadbd8;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        
+        .table-container {
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        
+        th, td {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+        
+        th {
+            background: #f8f9fa;
+            font-weight: bold;
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid #e9ecef;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Database Chatbot</h1>
+            <p>Generate SQL queries and analyze data using natural language</p>
+        </div>
+        
+        <div class="main-content">
+            <div class="sidebar">
+                <h3>Sessions</h3>
+                <div class="input-group">
+                    <input type="number" id="sessionId" placeholder="Session ID" min="1">
+                    <input type="text" id="sessionName" placeholder="Session Name">
+                    <button onclick="createSession()">Create</button>
+                </div>
+                <ul id="sessionList" class="session-list"></ul>
+            </div>
+            
+            <div class="chat-area">
+                <div id="messages" class="messages">
+                    <div class="loading" id="loading">Select a session to start chatting...</div>
+                </div>
+                
+                <div class="input-area">
+                    <div class="input-group">
+                        <textarea id="messageInput" placeholder="Type your database query here..." disabled></textarea>
+                        <button id="sendButton" onclick="sendMessage()" disabled>Send</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        let currentSessionId = null;
+        
+        async function createSession() {
+            const sessionId = document.getElementById('sessionId').value;
+            const sessionName = document.getElementById('sessionName').value;
+            
+            if (!sessionId || !sessionName) {
+                alert('Please enter both session ID and name');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/create-session`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        session_id: parseInt(sessionId),
+                        name: sessionName
+                    })
+                });
+                
+                if (response.ok) {
+                    loadSessions();
+                    document.getElementById('sessionId').value = '';
+                    document.getElementById('sessionName').value = '';
+                } else {
+                    alert('Failed to create session');
+                }
+            } catch (error) {
+                console.error('Error creating session:', error);
+                alert('Error creating session');
+            }
+        }
+        
+        async function loadSessions() {
+            try {
+                const response = await fetch(`${API_BASE}/show_sessions_info`);
+                const sessions = await response.json();
+                
+                const sessionList = document.getElementById('sessionList');
+                sessionList.innerHTML = '';
+                
+                sessions.forEach(session => {
+                    const li = document.createElement('li');
+                    li.className = 'session-item';
+                    li.textContent = `#${session.session_id} - ${session.name}`;
+                    li.onclick = () => selectSession(session.session_id);
+                    sessionList.appendChild(li);
+                });
+            } catch (error) {
+                console.error('Error loading sessions:', error);
+            }
+        }
+        
+        function selectSession(sessionId) {
+            currentSessionId = sessionId;
+            document.getElementById('messageInput').disabled = false;
+            document.getElementById('sendButton').disabled = false;
+            document.getElementById('loading').style.display = 'none';
+            
+            // Remove active class from all sessions
+            document.querySelectorAll('.session-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Add active class to selected session
+            document.querySelectorAll('.session-item').forEach(item => {
+                if (item.textContent.includes(`#${sessionId}`)) {
+                    item.classList.add('active');
+                }
+            });
+            
+            loadMessages(sessionId);
+        }
+        
+        async function loadMessages(sessionId) {
+            try {
+                const response = await fetch(`${API_BASE}/show_sessions_messages/${sessionId}`);
+                const messages = await response.json();
+                
+                const messagesContainer = document.getElementById('messages');
+                messagesContainer.innerHTML = '';
+                
+                messages.forEach(message => {
+                    addMessage(message.role, message.content);
+                });
+                
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            } catch (error) {
+                console.error('Error loading messages:', error);
+            }
+        }
+        
+        async function sendMessage() {
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value.trim();
+            
+            if (!message || !currentSessionId) return;
+            
+            addMessage('user', message);
+            messageInput.value = '';
+            
+            try {
+                const response = await fetch(`${API_BASE}/sessions/${currentSessionId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: message
+                    })
+                });
+                
+                if (response.ok) {
+                    const analysis = await response.json();
+                    addMessage('assistant', analysis);
+                } else {
+                    addMessage('assistant', 'Error: Failed to process your request');
+                }
+            } catch (error) {
+                console.error('Error sending message:', error);
+                addMessage('assistant', 'Error: Could not connect to server');
+            }
+        }
+        
+        function addMessage(role, content) {
+            const messagesContainer = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}-message`;
+            
+            if (typeof content === 'object' && content !== null) {
+                // Handle JSON analysis response
+                messageDiv.innerHTML = `
+                    <div><strong>${role === 'user' ? 'You' : 'Assistant'}:</strong></div>
+                    <div><strong>Analysis Summary:</strong> ${content.analysis.summary}</div>
+                    ${content.analysis.statistics ? `
+                        <div><strong>Statistics:</strong>
+                            Total Records: ${content.analysis.statistics.total_records || 'N/A'}
+                            ${content.analysis.statistics.average_value ? ` | Average: ${content.analysis.statistics.average_value}` : ''}
+                            ${content.analysis.statistics.max_value ? ` | Max: ${content.analysis.statistics.max_value}` : ''}
+                            ${content.analysis.statistics.min_value ? ` | Min: ${content.analysis.statistics.min_value}` : ''}
+                        </div>
+                    ` : ''}
+                    ${content.analysis.insights && content.analysis.insights.length > 0 ? `
+                        <div><strong>Insights:</strong>
+                            <ul>${content.analysis.insights.map(insight => `<li>${insight}</li>`).join('')}</ul>
+                        </div>
+                    ` : ''}
+                    ${content.analysis.recommendations && content.analysis.recommendations.length > 0 ? `
+                        <div><strong>Recommendations:</strong>
+                            <ul>${content.analysis.recommendations.map(rec => `<li>${rec}</li>`).join('')}</ul>
+                        </div>
+                    ` : ''}
+                    ${content.table_schema ? `
+                        <div><strong>Table Schema:</strong>
+                            Columns: ${content.table_schema.columns.join(', ')}
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>${content.table_schema.columns.map(col => `<th>${col}</th>`).join('')}</tr>
+                                </thead>
+                                <tbody>
+                                    ${content.table_schema.sample_data.slice(0, 5).map(row => `
+                                        <tr>${content.table_schema.columns.map(col => `<td>${row[col] || 'N/A'}</td>`).join('')}</tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    ` : ''}
+                `;
+            } else if (typeof content === 'string' && content.includes('*** TABLE SCHEMA ***')) {
+                // Handle legacy text format with table schema
+                const parts = content.split('*** TABLE SCHEMA ***');
+                const analysis = parts[0].trim();
+                const tableHtml = parts[1].trim();
+                
+                messageDiv.innerHTML = `
+                    <div><strong>${role === 'user' ? 'You' : 'Assistant'}:</strong></div>
+                    <div>${analysis}</div>
+                    <div class="table-container">${tableHtml}</div>
+                `;
+            } else {
+                // Handle regular text messages
+                messageDiv.innerHTML = `
+                    <div><strong>${role === 'user' ? 'You' : 'Assistant'}:</strong></div>
+                    <div>${content}</div>
+                `;
+            }
+            
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        
+        // Enter key to send message
+        document.getElementById('messageInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        
+        // Load sessions on page load
+        loadSessions();
+    </script>
+</body>
+</html>
