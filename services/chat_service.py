@@ -54,6 +54,7 @@ class ChatService:
 
         query_string = query_chain.invoke(input=new_message)
         query_results = db._execute(query_string["result"])
+        print(query_results)
         first_row = next(iter(query_results))
         column_names = list(first_row.keys())
         return query_results, memory_buffer, column_names, query_string
@@ -110,6 +111,27 @@ class ChatService:
             except (json.JSONDecodeError, ValueError):
                 # If both methods fail, perform basic analysis locally
                 return self._perform_basic_analysis(table_data_list, column_names)
+        
+        # Handle trend data format mismatch - convert from various formats to period/value format
+        if "analysis" in analysis_data and "trends" in analysis_data["analysis"]:
+            trends = analysis_data["analysis"]["trends"]
+            if trends and isinstance(trends, list) and len(trends) > 0:
+                # Check if trends are in the wrong format (missing period/value fields)
+                first_trend = trends[0]
+                if ("period" not in first_trend or "value" not in first_trend):
+                    # Convert from various alternative formats to trend format
+                    converted_trends = []
+                    for trend in trends:
+                        converted_trend = {
+                            "period": str(trend.get('rank', trend.get('time_period', trend.get('product', 'N/A')))),
+                            "value": float(trend.get('count', trend.get('sales', trend.get('performance_score', 0)))),
+                            "change_percentage": trend.get('change_percentage', trend.get('growth', None))
+                        }
+                        converted_trends.append(converted_trend)
+                    analysis_data["analysis"]["trends"] = converted_trends
+                # If trends array exists but is empty or malformed, remove it
+                elif not isinstance(first_trend, dict):
+                    analysis_data["analysis"]["trends"] = None
         
         # Convert to Pydantic model for validation
         return AnalysisResponse(**analysis_data)
