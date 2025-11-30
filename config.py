@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     # API settings - use deep_api from .env file
     api_key: str = Field(..., description="OpenRouter API key", alias="deep_api")
     openrouter_base_url: str = Field(default="https://openrouter.ai/api/v1", description="OpenRouter API base URL")
-    model_name: str = Field(default="deepseek/deepseek-chat-v3.1:free", description="LLM model name")
+    model_name: str = Field(default="x-ai/grok-4.1-fast:free", description="LLM model name")
     
     # Application settings
     debug: bool = Field(default=False, description="Debug mode")

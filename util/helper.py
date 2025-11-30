@@ -11,12 +11,12 @@ load_dotenv()
 
 # Import settings after environment variables are loaded
 from config import settings
-def connect_llm(api_key, model="deepseek/deepseek-chat-v3.1:free"):
+def connect_llm(api_key, model="x-ai/grok-4.1-fast:free"):
     """
     Initialize and return a ChatOpenAI LLM instance.
     """
     try:
-        return ChatOpenAI(
+        return ChatOpenAI(  
             temperature=0,
             api_key=api_key,
             base_url="https://openrouter.ai/api/v1",
@@ -33,7 +33,7 @@ def connect_db():
         params = urllib.parse.quote_plus(
             "Driver={ODBC Driver 17 for SQL Server};"
             "Server=localhost;"
-            "Database=grocery;"
+            "Database=grocery sales;"
             "Trusted_Connection=yes;"
         )
         connection_string = f"mssql+pyodbc:///?odbc_connect={params}"

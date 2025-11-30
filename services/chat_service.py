@@ -1,5 +1,5 @@
-from langchain.chains.conversation.base import ConversationChain
-from langchain.memory import ConversationBufferMemory
+from langchain_classic.chains import ConversationChain
+from langchain_classic.memory import ConversationBufferMemory
 from langchain_core.messages import ChatMessage
 from langchain_core.prompts import SystemMessagePromptTemplate, HumanMessagePromptTemplate, ChatPromptTemplate, MessagesPlaceholder
 from langchain_experimental.sql import SQLDatabaseChain

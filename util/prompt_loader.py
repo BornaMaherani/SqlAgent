@@ -62,7 +62,7 @@ def _get_default_prompt(prompt_name: str, variables: Dict[str, Any] | None = Non
             "- Include appropriate error handling considerations\n"
             "- Optimize for read performance\n"
             "- Handle edge cases gracefully\n\n"
-            "RESPONSE FORMAT: Pure SQL query only, no additional text"
+            "RESPONSE FORMAT: Pure SQL query only, no additional text. there is no need for markdown formats(```sql ... ```) or anything. output only **the string** of quary."
         ),
         "analysis_chat": (
             "You are an expert Data Analyst specializing in database result analysis.\n\n"
